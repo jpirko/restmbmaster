@@ -1,0 +1,148 @@
+.TH restmbmaster 8 "26 December 2019" "restmbmaster" "Rest API Modbus master"
+.SH NAME
+restmbmaster \(em Rest API gateway to Modbus slaves
+.SH SYNOPSIS
+.B restmbmaster
+.BI \-c " CONNECT_URI"
+.BI \-p " PORT"
+.br
+.B restmbmaster
+.BI \-f " FILE"
+.br
+.B restmbmaster
+.BR  \-h | \-v
+.SH DESCRIPTION
+.PP
+restmbmaster is a simple daemon that allows user to access Modbus slaves
+over Rest API. The slaves could be either connected over
+serial line (Modbus RTU protocol), or over TCP (Modbus TCP protocol).
+.SH OPTIONS
+.TP
+.B "\-h, \-\-help"
+Print help text to console and exit.
+.TP
+.B "\-v, \-\-version"
+Print version information to console and exit.
+.TP
+.B "\-g, \-\-debug"
+Turns on debugging messages. Repeating the option increases verbosity.
+.TP
+.BI "\-c " CONNECT_URI ", \-\-connect " CONNECT_URI
+Specifies the target Modbus bus to connect to. Supported formats:
+.RS 7
+.PP
+.BR "tcp://HOSTNAME[:PORT]"
+.RS 7
+.PP
+Example:
+.BR "tcp://test.abc:1000"
+.PP
+Default PORT:
+.BR "502"
+.RE
+.PP
+.BR "rtu:DEVICEPATH[?baud=BAUDRATE]"
+.RS 7
+.PP
+Example:
+.BR "rtu:/dev/ttyS0?baud=9600"
+.PP
+Default BAUDRATE:
+.BR "115200"
+.RE
+.RE
+.TP
+.BI "\-p " PORT ", \-\-port " PORT
+Specifies TCP port on which the webserver is listening and where the Rest API is exposed.
+.TP
+.BI "\-f " FILE ", \-\-config " FILE
+Load the specified configuration file.
+.SH REST API
+.TP
+The API is quite simple. Only "GET" (read) and "PUT" (write) methods are supported. The "Content-Type" is always "text/plain" for both "GET" and "PUT". The path in the URL has following format:
+.PP
+.B "http://HOSTNAME:PORT/slaves/SLAVE_ADDRESS/OBJECT_FAMILY/OBJECT_ADDRESS[?count=OBJECT_COUNT]"
+.RS 7
+.PP
+.BR "SLAVE_ADDRESS "\(em
+Address of the slave to communitate with, number in range from 0 to 255.
+.PP
+.BR "OBJECT_FAMILY "\(em
+Is a string to identify the family of the objects. It is one of:
+.PP
+.RS 7
+.BR "coils "\(em
+To access coils (RW).
+.BR
+.PP
+.BR "discrete-inputs "\(em
+To access discrete inputs (RO).
+.BR
+.PP
+.BR "input-registers "\(em
+To access input registers (RO).
+.BR
+.PP
+.BR "holding-registers "\(em
+To access holding registers (RW).
+.BR
+.RE
+.PP
+.BR "OBJECT_ADDRESS "\(em
+Address of the object according to the family. It is an integer number, starting from 0.
+.PP
+.BR "OBJECT_COUNT "\(em
+Number of objects to read or write, starting at OBJECT_ADDRESS. It is an integer number, starting from 0. If not specified, defaults to 1.
+.RE
+.PP
+The content being returned by "GET" method is a value of the object as a plain integer number in the text. If values of multiple objects are requested, they are separated by a single space. Same format applies for the "PUT" method.
+.SH EXAMPLES
+.PP
+To run connecting to Modbus TCP:
+.PP
+.nf
+$ restmbmaster -c tcp://test.abc:1000 -p 8080
+.fi
+.PP
+To run connecting to Modbus RTU:
+.PP
+.nf
+$ restmbmaster -c rtu:/dev/ttyS0?baud=9600 -p 8080
+.fi
+.PP
+To run according to the configuration from file:
+.PP
+.nf
+$ restmbmaster -f myconfig.conf
+.PP
+When restmbmaster is running, one can use for example curl to communicate with Modbus slaves.
+In the following example, slave with address 55 is queried for the value of input register with address 10:
+.PP
+.nf
+$ curl http://127.0.0.1:8080/slaves/55/input-registers/10
+34
+.fi
+.PP
+It is possible to query multiple registers (in sequence) at once:
+.PP
+.nf
+$ curl http://127.0.0.1:8080/slaves/55/input-registers/10?count=4
+34 78 234 2
+.fi
+.PP
+To write new value (434) to holding register 20 the "PUT" method has to be used:
+.PP
+.nf
+$ curl http://127.0.0.1:8080/slaves/55/holding-registers/20 -d "434" -H "Content-Type: text/plain" -X PUT
+.fi
+.PP
+It is also possible to write to a sequence of registers (20-26):
+.PP
+.nf
+$ curl http://127.0.0.1:8080/slaves/55/holding-registers/20 -d "434 48 32 92 1 0 3" -H "Content-Type: text/plain" -X PUT
+.fi
+.SH SEE ALSO
+.BR restmbmaster.conf (5),
+.SH AUTHOR
+.PP
+Jiri Pirko is the original author and current maintainer of restmbmaster.

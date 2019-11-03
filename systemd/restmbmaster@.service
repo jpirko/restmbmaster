@@ -1,0 +1,7 @@
+[Unit]
+Description=Rest API Modbus master %I
+
+[Service]
+ExecStart=/usr/bin/restmbmaster -f /etc/restmbmaster/%i.conf
+Restart=on-failure
+RestartPreventExitStatus=1

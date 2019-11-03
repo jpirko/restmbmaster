@@ -1,0 +1,70 @@
+.TH RESTMBMASTER.CONF 5 "2019-12-28" "restmbmaster" "Rest API Modbus master configuration"
+.SH NAME
+restmbmaster.conf \(em restmbmaster configuration file
+.SH DESCRIPTION
+.TP
+restmbmaster uses very simple format of configuration file, each line has following format:
+.BI "key = " value
+.TP
+In case the option does not support value the line format is:
+.BI "key"
+.SH OPTIONS
+.TP
+.B "debug"
+Turns on debugging messages. Repeating the option increases verbosity.
+.TP
+.BI "connect = " CONNECT_URI
+Specifies the target Modbus bus to connect to. Supported formats:
+.RS 7
+.PP
+.BR "tcp://HOSTNAME[:PORT]"
+.RS 7
+.PP
+Example:
+.BR "tcp://test.abc:1000"
+.PP
+Default PORT:
+.BR "502"
+.RE
+.PP
+.BR "rtu:DEVICEPATH[?baud=BAUDRATE]"
+.RS 7
+.PP
+Example:
+.BR "rtu:/dev/ttyS0?baud=9600"
+.PP
+Default BAUDRATE:
+.BR "115200"
+.RE
+.RE
+.TP
+.BI "port = " PORT
+Specifies TCP port on which the webserver is listening and where the Rest API is exposed.
+.SH EXAMPLES
+.PP
+Example Modbus TCP config:
+.PP
+.nf
+connect = tcp://127.0.0.1:5020
+port = 8080
+.fi
+.PP
+Example Modbus RTU config:
+.PP
+.nf
+connect = rtu:/dev/ttyUSB0?baud=9600
+port = 8080
+.fi
+.PP
+Example Modbus RTU config with debug messages verbosity:
+.PP
+.nf
+connect = rtu:/dev/ttyUSB0?baud=9600
+port = 8080
+debug
+.fi
+.SH SEE ALSO
+.BR restmbmaster (8),
+.SH AUTHOR
+.PP
+Jiri Pirko is the original author and current maintainer of restmbmaster.
