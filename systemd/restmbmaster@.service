@@ -5,3 +5,6 @@ Description=Rest API Modbus master %I
 ExecStart=/usr/bin/restmbmaster -f /etc/restmbmaster/%i.conf
 Restart=on-failure
 RestartPreventExitStatus=1
+
+[Install]
+WantedBy=multi-user.target
