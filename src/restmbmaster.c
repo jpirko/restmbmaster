@@ -372,7 +372,7 @@ static const char *rmm_next_slash(char **pos)
  */
 
 #define RMM_PAGE_SIZE (128 * 8)
-#define RMM_URL_MAX 32
+#define RMM_URL_MAX 64
 
 struct rmm_post_context {
 	char buf[RMM_PAGE_SIZE];
