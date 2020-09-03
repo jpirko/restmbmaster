@@ -166,13 +166,19 @@ static int rmm_modbus_coils_get(struct rmm *rmm, uint8_t slave_address,
 				unsigned int *status_code)
 {
 	uint8_t vals[RMM_ITEM_COUNT_MAX];
+	bool retry_done = false;
 	size_t page_offset = 0;
 	int err;
 	int i;
 
+again:
 	modbus_set_slave(rmm->mb, slave_address);
 	err = modbus_read_bits(rmm->mb, item_address, item_count, vals);
 	if (err == -1) {
+		if (!retry_done && errno == ECONNRESET) {
+			retry_done = true;
+			goto again;
+		}
 		snprintf(page, page_size, "Unable to read modbus coils: %s",
 			 modbus_strerror(errno));
 		*status_code = MHD_HTTP_BAD_REQUEST;
@@ -194,6 +200,7 @@ static int rmm_modbus_coils_put(struct rmm *rmm, uint8_t slave_address,
 				unsigned int *status_code)
 {
 	uint8_t vals[RMM_ITEM_COUNT_MAX];
+	bool retry_done = false;
 	int err;
 	int i;
 
@@ -206,9 +213,14 @@ static int rmm_modbus_coils_put(struct rmm *rmm, uint8_t slave_address,
 		vals[i] = item_input_vals[i];
 	}
 
+again:
 	modbus_set_slave(rmm->mb, slave_address);
 	err = modbus_write_bits(rmm->mb, item_address, item_count, vals);
 	if (err == -1) {
+		if (!retry_done && errno == ECONNRESET) {
+			retry_done = true;
+			goto again;
+		}
 		snprintf(page, page_size, "Unable to write modbus coils: %s",
 			 modbus_strerror(errno));
 		*status_code = MHD_HTTP_BAD_REQUEST;
@@ -225,13 +237,19 @@ static int rmm_modbus_discrete_inputs_get(struct rmm *rmm,
 					  unsigned int *status_code)
 {
 	uint8_t vals[RMM_ITEM_COUNT_MAX];
+	bool retry_done = false;
 	size_t page_offset = 0;
 	int err;
 	int i;
 
+again:
 	modbus_set_slave(rmm->mb, slave_address);
 	err = modbus_read_input_bits(rmm->mb, item_address, item_count, vals);
 	if (err == -1) {
+		if (!retry_done && errno == ECONNRESET) {
+			retry_done = true;
+			goto again;
+		}
 		snprintf(page, page_size, "Unable to read modbus discrete inputs: %s",
 			 modbus_strerror(errno));
 		*status_code = MHD_HTTP_BAD_REQUEST;
@@ -254,14 +272,20 @@ static int rmm_modbus_input_registers_get(struct rmm *rmm,
 					  unsigned int *status_code)
 {
 	uint16_t regs[RMM_ITEM_COUNT_MAX];
+	bool retry_done = false;
 	size_t page_offset = 0;
 	int err;
 	int i;
 
+again:
 	modbus_set_slave(rmm->mb, slave_address);
 	err = modbus_read_input_registers(rmm->mb, item_address,
 					  item_count, regs);
 	if (err == -1) {
+		if (!retry_done && errno == ECONNRESET) {
+			retry_done = true;
+			goto again;
+		}
 		snprintf(page, page_size, "Unable to read modbus input registers: %s",
 			 modbus_strerror(errno));
 		*status_code = MHD_HTTP_BAD_REQUEST;
@@ -284,13 +308,19 @@ static int rmm_modbus_holding_registers_get(struct rmm *rmm,
 					    unsigned int *status_code)
 {
 	uint16_t regs[RMM_ITEM_COUNT_MAX];
+	bool retry_done = false;
 	size_t page_offset = 0;
 	int err;
 	int i;
 
+again:
 	modbus_set_slave(rmm->mb, slave_address);
 	err = modbus_read_registers(rmm->mb, item_address, item_count, regs);
 	if (err == -1) {
+		if (!retry_done && errno == ECONNRESET) {
+			retry_done = true;
+			goto again;
+		}
 		snprintf(page, page_size, "Unable to read modbus holding registers: %s",
 			 modbus_strerror(errno));
 		*status_code = MHD_HTTP_BAD_REQUEST;
@@ -313,11 +343,17 @@ static int rmm_modbus_holding_registers_put(struct rmm *rmm,
 					    char *page, size_t page_size,
 					    unsigned int *status_code)
 {
+	bool retry_done = false;
 	int err;
 
+again:
 	modbus_set_slave(rmm->mb, slave_address);
 	err = modbus_write_registers(rmm->mb, item_address, item_count, item_input_vals);
 	if (err == -1) {
+		if (!retry_done && errno == ECONNRESET) {
+			retry_done = true;
+			goto again;
+		}
 		snprintf(page, page_size, "Unable to write modbus holding registers: %s",
 			 modbus_strerror(errno));
 		*status_code = MHD_HTTP_BAD_REQUEST;
@@ -733,6 +769,15 @@ static int rmm_modbus_init(struct rmm *rmm)
 	if (!rmm->mb) {
 		pr_err("Unable to allocate libmodbus context: %s\n",
 		       modbus_strerror(errno));
+		return -1;
+	}
+
+	err = modbus_set_error_recovery(rmm->mb, MODBUS_ERROR_RECOVERY_LINK |
+						 MODBUS_ERROR_RECOVERY_PROTOCOL);
+	if (err == -1) {
+		pr_err("Unable set error recovery: %s\n",
+		       modbus_strerror(errno));
+		modbus_free(rmm->mb);
 		return -1;
 	}
 
