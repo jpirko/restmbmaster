@@ -100,6 +100,7 @@ struct rmm {
 	modbus_t *mb;
 	struct MHD_Daemon *mhd;
 	char *page;
+	bool mb_connected;
 };
 
 #define pr_dbg(rmm, args...)	\
@@ -591,6 +592,17 @@ static int rmm_ahcb(void *cls, struct MHD_Connection *connection,
 		item_count = arg_item_count;
 	}
 
+	if (!rmm->mb_connected) {
+		err = modbus_connect(rmm->mb);
+		if (err == -1) {
+			snprintf(page, RMM_PAGE_SIZE, "Unabled to connect to modbus");
+			status_code = MHD_HTTP_BAD_REQUEST;
+			goto response;
+		} else {
+			rmm->mb_connected = true;
+		}
+	}
+
 	if (!strcmp(method, MHD_HTTP_METHOD_GET)) {
 		err = modbus_obj_ops->get(rmm, slave_address, item_address,
 					  item_count, page, RMM_PAGE_SIZE, &status_code);
@@ -782,12 +794,11 @@ static int rmm_modbus_init(struct rmm *rmm)
 	}
 
 	err = modbus_connect(rmm->mb);
-	if (err == -1) {
+	if (err == -1)
 		pr_err("Unable to connect to modbus: %s\n",
 		       modbus_strerror(errno));
-		modbus_free(rmm->mb);
-		return -1;
-	}
+	else
+		rmm->mb_connected = true;
 
 	return 0;
 }
