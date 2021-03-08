@@ -428,10 +428,10 @@ rmm_request_completed_callback(void *cls, struct MHD_Connection *connection,
 	free(post_context);
 }
 
-static int rmm_ahcb(void *cls, struct MHD_Connection *connection,
-		    const char *_url, const char *method, const char *version,
-		    const char *upload_data, size_t *upload_data_size,
-		    void **ptr)
+static enum MHD_Result rmm_ahcb(void *cls, struct MHD_Connection *connection,
+				const char *_url, const char *method,
+				const char *version, const char *upload_data,
+				size_t *upload_data_size, void **ptr)
 {
 	const struct rmm_modbus_obj_ops *modbus_obj_ops;
 	struct rmm_post_context *post_context = *ptr;
