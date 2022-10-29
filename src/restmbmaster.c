@@ -595,7 +595,7 @@ static enum MHD_Result rmm_ahcb(void *cls, struct MHD_Connection *connection,
 	if (!rmm->mb_connected) {
 		err = modbus_connect(rmm->mb);
 		if (err == -1) {
-			snprintf(page, RMM_PAGE_SIZE, "Unabled to connect to modbus");
+			snprintf(page, RMM_PAGE_SIZE, "Unable to connect to modbus");
 			status_code = MHD_HTTP_BAD_REQUEST;
 			goto response;
 		} else {
