@@ -101,6 +101,7 @@ struct rmm {
 	struct MHD_Daemon *mhd;
 	char *page;
 	bool mb_connected;
+	bool mb_dontkeep;
 };
 
 #define pr_dbg(rmm, args...)	\
@@ -437,6 +438,7 @@ static enum MHD_Result rmm_ahcb(void *cls, struct MHD_Connection *connection,
 	struct rmm_post_context *post_context = *ptr;
 	uint16_t item_input_vals[RMM_ITEM_COUNT_MAX];
 	enum rmm_modbus_obj_type obj_type;
+	bool unexpected_method = false;
 	struct MHD_Response *response;
 	unsigned int status_code;
 	const char *input = NULL;
@@ -613,8 +615,16 @@ static enum MHD_Result rmm_ahcb(void *cls, struct MHD_Connection *connection,
 					  item_count, item_input_vals,
 					  page, RMM_PAGE_SIZE, &status_code);
 	} else {
-		goto unexpected_method;
+		unexpected_method = true;
 	}
+
+	if (rmm->mb_dontkeep) {
+		modbus_close(rmm->mb);
+		rmm->mb_connected = false;
+	}
+
+	if (unexpected_method)
+		goto unexpected_method;
 
 	if (!err)
 		status_code = MHD_HTTP_OK;
@@ -794,11 +804,14 @@ static int rmm_modbus_init(struct rmm *rmm)
 	}
 
 	err = modbus_connect(rmm->mb);
-	if (err == -1)
+	if (err == -1) {
 		pr_err("Unable to connect to modbus: %s\n",
 		       modbus_strerror(errno));
-	else
+	} else if (rmm->mb_dontkeep) {
+		modbus_close(rmm->mb);
+	} else {
 		rmm->mb_connected = true;
+	}
 
 	return 0;
 }
@@ -914,6 +927,10 @@ static int rmm_parse_config(struct rmm *rmm, const char *path)
 			if (val)
 				goto err_value_should_not_be_there;
 			rmm->debug++;
+		} else if (!strcmp(key, "dontkeep")) {
+			if (val)
+				goto err_value_should_not_be_there;
+			rmm->mb_dontkeep = true;
 		} else {
 			pr_err("Config, line %d: Key \"%s\" is unknown.\n",
 			       linecnt, key);
@@ -945,6 +962,7 @@ static int rmm_parse_cmdline(struct rmm *rmm, int argc, char *argv[])
 		{ "port",	required_argument,	NULL, 'p' },
 		{ "debug",	no_argument,		NULL, 'd' },
 		{ "config",	required_argument,	NULL, 'f' },
+		{ "dontkeep",	no_argument,		NULL, 'K' },
 		{ NULL, 0, NULL, 0 }
 	};
 	int opt;
@@ -952,7 +970,7 @@ static int rmm_parse_cmdline(struct rmm *rmm, int argc, char *argv[])
 
 	rmm->argv0 = ident_from_argv0(rmm, argv[0]);
 
-	while ((opt = getopt_long(argc, argv, "hvc:p:df:",
+	while ((opt = getopt_long(argc, argv, "hvc:p:df:K",
 				  long_options, NULL)) >= 0) {
 
 		switch(opt) {
@@ -978,6 +996,9 @@ static int rmm_parse_cmdline(struct rmm *rmm, int argc, char *argv[])
 			err = rmm_parse_config(rmm, optarg);
 			if (err)
 				return -1;
+			break;
+		case 'K':
+			rmm->mb_dontkeep = true;
 			break;
 		default:
 			return -1;
@@ -1007,7 +1028,8 @@ static void rmm_print_help(struct rmm *rmm)
 	    "                                 (e.g. rtu:/dev/ttyS0?baud=9600\n"
 	    "                             Default BAUDRATE is 115200\n"
             "    -p --port=PORT           Port on which the webserver is listening\n"
-            "    -f --config=FILE         Load the specified configuration file\n",
+            "    -f --config=FILE         Load the specified configuration file\n"
+            "    -K --dontkeep            Don't keep connection open\n",
             rmm->argv0);
 }
 
